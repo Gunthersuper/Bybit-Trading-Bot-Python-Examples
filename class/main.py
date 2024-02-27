@@ -60,10 +60,8 @@ while True:
         try:
             positions = session.get_positions()
             print(f'Opened positions: {len(positions)}')
-            last_pnl = session.get_last_pnl(1)
-            print(f'Last PnL: {last_pnl} USDT')
-            if qty > 700:
-                qty = 10
+            last_pnl = session.get_last_pnl(10)
+            print(f'Last 10 PnL: {last_pnl} USDT')
             current_pnl = session.get_current_pnl()
             print(f'Current PnL: {current_pnl} USDT')
             for elem in symbols:
@@ -73,19 +71,11 @@ while True:
                 signal = signal2(elem)
                 if signal == 'up' and not elem in positions:
                     print(f'Found BUY signal for {elem}')
-                    if last_pnl < 0:
-                        qty = qty * 2
-                    if last_pnl > 0:
-                        qty = 10
-                    # session.place_order_market(elem, 'buy', mode, leverage, qty, tp, sl)
+                    session.place_order_market(elem, 'buy', mode, leverage, qty, tp, sl)
                     sleep(1)
                 if signal == 'down' and not elem in positions:
                     print(f'Found SELL signal for {elem}')
-                    if last_pnl < 0:
-                        qty = qty * 2
-                    if last_pnl > 0:
-                        qty = 10
-                    # session.place_order_market(elem, 'sell', mode, leverage, qty, tp, sl)
+                    session.place_order_market(elem, 'sell', mode, leverage, qty, tp, sl)
                     sleep(1)
 
         except Exception as err:
