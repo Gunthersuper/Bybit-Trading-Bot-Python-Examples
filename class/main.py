@@ -44,12 +44,6 @@ def signal2(symbol):
 
 qty = 10
 symbols = session.get_tickers()
-tmp = []
-for i in range(len(symbols)):
-    s = symbols[random.randrange(len(symbols))]
-    if not s in tmp:
-        tmp.append(s)
-symbols = tmp
 while True:
     balance = session.get_balance()
     if balance is None or symbols is None:
