@@ -7,77 +7,48 @@ from threading import Thread
 
 session = Bybit(api, secret, accountType)
 
-tp = 0.012
-sl = 0.009
+tp = 0.02
+sl = 0.015
 mode = 1
 leverage = 10
-timeframe = 60
+timeframe = 5
 qty = 10
-max_positions = 1
+max_positions = 200
 
 
-def rsi_signal(session, symbol):
+def rsi_signal(symbol):
     kl = session.klines(symbol, timeframe)
     rsi = ta.momentum.RSIIndicator(kl.Close).rsi()
-    if rsi.iloc[-2] < 30 and rsi.iloc[-1] > 30:
-        return 'up'
-    if rsi.iloc[-2] > 70 and rsi.iloc[-1] < 70:
-        return 'down'
-    else:
-        return 'none'
-
-
-def signal2(symbol):
-    kl = session.klines(symbol, timeframe)
-    ema200 = ta.trend.ema_indicator(kl.Close, window=200)
-    if kl.Close.iloc[-1] > kl.Open.iloc[-1]:
-        if abs(kl.High.iloc[-1]-kl.Close.iloc[-1]) > abs(kl.Close.iloc[-1] - kl.Open.iloc[-1]) and kl.Close.iloc[-1] < ema200.iloc[-1]:
-            return 'sell'
-        if abs(kl.Open.iloc[-1] - kl.Low.iloc[-1]) > abs(kl.Close.iloc[-1] - kl.Open.iloc[-1]) and kl.Close.iloc[-1] > ema200.iloc[-1]:
-            return 'buy'
-    if kl.Close.iloc[-1] < kl.Open.iloc[-1]:
-        if abs(kl.High.iloc[-1]-kl.Open.iloc[-1]) > abs(kl.Open.iloc[-1] - kl.Close.iloc[-1]) and kl.Close.iloc[-1] < ema200.iloc[-1]:
-            return 'sell'
-        if abs(kl.Close.iloc[-1] - kl.Low.iloc[-1]) > abs(kl.Open.iloc[-1] - kl.Open.iloc[-1]) and kl.Close.iloc[-1] > ema200.iloc[-1]:
-            return 'buy'
-
+    if rsi.iloc[-2] < 25:
+        return 'buy'
+    if rsi.iloc[-2] > 75:
+        return 'sell'
 
 qty = 10
 symbols = session.get_tickers()
 while True:
-    balance = session.get_balance()
-    if balance is None or symbols is None:
-        print('Cant connect')
-        sleep(120)
-    if balance is not None and symbols is not None:
-        print(f'Account balance: {balance} USDT')
-        try:
+    try:
+        balance = session.get_balance()
+        # qty = balance * 0.3
+        print(f'Balance: {round(balance, 3)} USDT')
+        positions = session.get_positions()
+        print(f'{len(positions)} Positions: {positions}')
+
+        for symbol in symbols:
             positions = session.get_positions()
-            print(f'Opened positions: {len(positions)}')
-            last_pnl = session.get_last_pnl(10)
-            print(f'Last 10 PnL: {last_pnl} USDT')
-            current_pnl = session.get_current_pnl()
-            print(f'Current PnL: {current_pnl} USDT')
-            for elem in symbols:
-                positions = session.get_positions()
-                if len(positions) >= max_positions:
-                    break
-                signal = signal2(elem)
-                if signal == 'up' and not elem in positions:
-                    print(f'Found BUY signal for {elem}')
-                    session.place_order_market(elem, 'buy', mode, leverage, qty, tp, sl)
-                    sleep(1)
-                if signal == 'down' and not elem in positions:
-                    print(f'Found SELL signal for {elem}')
-                    session.place_order_market(elem, 'sell', mode, leverage, qty, tp, sl)
-                    sleep(1)
+            if len(positions) >= max_positions:
+                break
+            sign = rsi_signal(symbol)
+            if sign is not None and not symbol in positions:
+                print(symbol, sign)
+                session.place_order_market(symbol, sign, mode, leverage, qty, tp, sl)
+                sleep(1)
 
-        except Exception as err:
-            print(err)
-            print('No connection')
-            sleep(120)
-    print('Wait 60 sec')
-    sleep(60)
-
+        wait = 100
+        print(f'Waiting {wait} sec')
+        sleep(wait)
+    except Exception as err:
+        print(err)
+        sleep(30)
 
 
