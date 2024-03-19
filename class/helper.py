@@ -10,11 +10,11 @@ class Bybit:
         self.api = api
         self.secret = secret
         self.accountType = accounttype
-        self.session = HTTP(api_key=self.api, api_secret=self.secret)
+        self.session = HTTP(api_key=self.api, api_secret=self.secret, testnet=True)
 
     def get_balance(self):
         try:
-            resp = self.session.get_wallet_balance(accountType=self.accountType, coin="USDT")['result']['list'][0]['coin'][0]['walletBalance']
+            resp = self.session.get_wallet_balance(accountType=self.accountType, coin="USDT", recv_window=40000)['result']['list'][0]['coin'][0]['walletBalance']
             resp = round(float(resp), 3)
             return resp
         except Exception as err:
@@ -24,7 +24,8 @@ class Bybit:
         try:
             resp = self.session.get_positions(
                 category='linear',
-                settleCoin='USDT'
+                settleCoin='USDT',
+                recv_window = 40000
             )['result']['list']
             pos = []
             for elem in resp:
@@ -35,7 +36,7 @@ class Bybit:
 
     def get_last_pnl(self, limit=50):
         try:
-            resp = self.session.get_closed_pnl(category="linear", limit=limit)['result']['list']
+            resp = self.session.get_closed_pnl(category="linear", limit=limit, recv_window=40000)['result']['list']
             pnl = 0
             for elem in resp:
                 pnl += float(elem['closedPnl'])
@@ -47,7 +48,8 @@ class Bybit:
         try:
             resp = self.session.get_positions(
                 category="linear",
-                settleCoin="USDT"
+                settleCoin="USDT",
+                recv_window=10000
             )['result']['list']
             pnl = 0
             for elem in resp:
@@ -58,7 +60,7 @@ class Bybit:
 
     def get_tickers(self):
         try:
-            resp = self.session.get_tickers(category="linear")['result']['list']
+            resp = self.session.get_tickers(category="linear", recv_window=10000)['result']['list']
             symbols = []
             for elem in resp:
                 if 'USDT' in elem['symbol'] and not 'USDC' in elem['symbol']:
@@ -73,7 +75,8 @@ class Bybit:
                 category='linear',
                 symbol=symbol,
                 interval=timeframe,
-                limit=limit
+                limit=limit,
+                recv_window=7000
             )['result']['list']
             resp = pd.DataFrame(resp)
             resp.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Turnover']
@@ -88,7 +91,8 @@ class Bybit:
         try:
             resp = self.session.get_instruments_info(
                 category='linear',
-                symbol=symbol
+                symbol=symbol,
+                recv_window=10000
             )['result']['list'][0]
             price = resp['priceFilter']['tickSize']
             if '.' in price:
@@ -109,6 +113,7 @@ class Bybit:
             resp = self.session.get_instruments_info(
                 category="linear",
                 symbol=symbol,
+                recv_window=10000
             )['result']['list'][0]['leverageFilter']['maxLeverage']
             return float(resp)
         except Exception as err:
@@ -121,7 +126,8 @@ class Bybit:
                 symbol=symbol,
                 tradeMode=str(mode),
                 buyLeverage=str(leverage),
-                sellLeverage=str(leverage)
+                sellLeverage=str(leverage),
+                recv_window=10000
             )
             if resp['retMsg'] == 'OK':
                 if mode == 1:
@@ -141,6 +147,7 @@ class Bybit:
                 symbol=symbol,
                 buyLeverage=str(leverage),
                 sellLeverage=str(leverage),
+                recv_window=10000
             )
             if resp['retMsg'] == 'OK':
                 print(f'[{symbol}] Changed leverage to {leverage}')
@@ -159,7 +166,7 @@ class Bybit:
         qty_precision = self.get_precisions(symbol)[1]
         mark_price = self.session.get_tickers(
             category='linear',
-            symbol=symbol
+            symbol=symbol, recv_window=10000
         )['result']['list'][0]['markPrice']
         mark_price = float(mark_price)
         print(f'Placing {side} order for {symbol}. Mark price: {mark_price}')
@@ -178,7 +185,7 @@ class Bybit:
                     takeProfit=tp_price,
                     stopLoss=sl_price,
                     tpTriggerBy='Market',
-                    slTriggerBy='Market'
+                    slTriggerBy='Market', recv_window=10000
                 )
                 print(resp['retMsg'])
             except Exception as err:
@@ -197,7 +204,7 @@ class Bybit:
                     takeProfit=tp_price,
                     stopLoss=sl_price,
                     tpTriggerBy='Market',
-                    slTriggerBy='Market'
+                    slTriggerBy='Market', recv_window=10000
                 )
                 print(resp['retMsg'])
             except Exception as err:
@@ -257,3 +264,15 @@ class Bybit:
                 print(resp['retMsg'])
             except Exception as err:
                 print(err)
+
+    def send_tg(self, key, tg_id, text):
+        try:
+            url = f'https://api.telegram.org/bot{key}/sendMessage'
+            data = {
+                'chat_id': tg_id,
+                'text': text
+            }
+            resp = requests.post(url, data=data)
+            print(resp)
+        except Exception as err:
+            print(err)
